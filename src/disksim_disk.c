@@ -641,6 +641,100 @@ static void disk_buffer_printstats (int *set, int setsize, char *prefix)
   fprintf(outputfile, "%sNumber of disk bus waits: %d\n", prefix, numbuswaits);
 }
 
+static void disk_energy_printstats (int *set, int setsize, char *prefix)
+{
+	int i;
+	double activetime;
+	double idletime;
+	double standbytime;
+	double idleuptime;
+	double idledowntime;
+	double spinuptime;
+	double spindowntime;
+	double totaltime;
+
+	double idleupjoul;
+	double idledownjoul;
+	double spinupjoul;
+	double spindownjoul;
+
+	double activejoul;
+	double idlejoul; 
+	double standbyjoul;
+	double totaljoul;
+
+	for(i = 0;i < setsize;i++){
+  		disk *currdisk = getdisk (set[i]);
+
+		if (currdisk->active_end <  currdisk->active_start) {
+			currdisk->active_end = simtime;
+			currdisk->stat.activetime += (simtime - currdisk->active_start);
+		}
+
+		if (currdisk->idle_end <  currdisk->idle_start) {
+			currdisk->idle_end = simtime;
+			currdisk->stat.idletime += (simtime - currdisk->idle_start);
+		}
+
+		if (currdisk->standby_end <  currdisk->standby_start) {
+			currdisk->standby_end = simtime;
+			currdisk->stat.standbytime += (simtime - currdisk->standby_start);
+		}
+
+		activetime = currdisk->stat.activetime;
+		idletime = currdisk->stat.idletime;
+		standbytime = currdisk->stat.standbytime;
+		idleuptime = currdisk->stat.idleups*currdisk->idleup_time;
+		idledowntime = currdisk->stat.idledowns*currdisk->idledown_time; 
+		spinuptime = currdisk->stat.spinups*currdisk->spinup_time; 
+		spindowntime = currdisk->stat.spindowns*currdisk->spindown_time; 
+
+		// 1 Joul = 1watt * 1second
+		activejoul = currdisk->active_watt * (activetime/1000);
+		idlejoul = currdisk->idle_watt * (idletime/1000);
+		standbyjoul = currdisk->standby_watt * (standbytime/1000);
+
+		idleupjoul = currdisk->idleup_joul * currdisk->stat.idleups;
+		idledownjoul = currdisk->idledown_joul * currdisk->stat.idledowns;
+		spinupjoul = currdisk->spinup_joul * currdisk->stat.spinups;
+		spindownjoul = currdisk->spindown_joul * currdisk->stat.spindowns;
+
+		totaljoul = activejoul + idlejoul + standbyjoul + 
+			idleupjoul + idledownjoul + spinupjoul + spindownjoul;
+		
+		fprintf(outputfile, "%sTotal Req Count:	%d\n", prefix, currdisk->req_count);
+
+		fprintf(outputfile, "%sActive Joul:	%f\n", prefix, activejoul);
+		fprintf(outputfile, "%sIdle Joul:	%f\n", prefix, idlejoul);
+		fprintf(outputfile, "%sStandby Joul:	%f\n", prefix, standbyjoul);
+
+		fprintf(outputfile, "%sIdleup Joul:	%f\n", prefix, idleupjoul);
+		fprintf(outputfile, "%sIdleDown Joul:	%f\n", prefix, idledownjoul);
+		fprintf(outputfile, "%sSpinup Joul:	%f\n", prefix, spinupjoul);
+		fprintf(outputfile, "%sSpindown Joul:	%f\n", prefix, spindownjoul);
+
+		fprintf(outputfile, "%sTotal Joul:	%f\n", prefix, totaljoul);
+
+  		fprintf(outputfile, "%sNumber of idleups:    %d\n", prefix, currdisk->stat.idleups);
+  		fprintf(outputfile, "%sNumber of idledowns:    %d\n", prefix, currdisk->stat.idledowns);
+  		fprintf(outputfile, "%sNumber of Spinups:    %d\n", prefix, currdisk->stat.spinups);
+  		fprintf(outputfile, "%sNumber of Spindowns:    %d\n", prefix, currdisk->stat.spindowns);
+  		fprintf(outputfile, "%sTotal Active Time:    %f\n", prefix, activetime);
+  		fprintf(outputfile, "%sTotal Idle Time:    %f\n", prefix, idletime);
+  		fprintf(outputfile, "%sTotal Standby Time:    %f\n", prefix, standbytime);
+  		fprintf(outputfile, "%sIdleup Time:    %f\n", prefix, (double)idleuptime);
+  		fprintf(outputfile, "%sIdledown Time:    %f\n", prefix, (double)idledowntime);
+  		fprintf(outputfile, "%sSpinup Time:    %f\n", prefix, (double)spinuptime);
+  		fprintf(outputfile, "%sSpindown Time:    %f\n", prefix, (double)spindowntime);
+
+		totaltime = activetime + idletime + standbytime + idleuptime + idledowntime
+			+ spinuptime + spindowntime;
+
+		fprintf(outputfile, "%sTotalTime:	%f\n", prefix, totaltime);
+  		fprintf(outputfile, "%sSimTime:    %f\n", prefix, simtime);
+
+	}
+}
 
 static void disk_seek_printstats (int *set, int setsize, char *prefix)
 {
@@ -764,6 +858,7 @@ void disk_printsetstats (int *set, int setsize, char *sourcestr)
   disk_acctime_printstats(set, setsize, prefix);
   disk_interfere_printstats(set, setsize, prefix);
   disk_buffer_printstats(set, setsize, prefix);
+  disk_energy_printstats(set, setsize, prefix);
 }
 
 

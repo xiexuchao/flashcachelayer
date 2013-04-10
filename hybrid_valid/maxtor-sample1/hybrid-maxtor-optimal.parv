@@ -35,7 +35,30 @@ disksim_fcl Fcl {
 
   HDD Read Positioning Time = 4400,  #us
   HDD Write Positioning Time = 4900, #us 
-  HDD Bandwidth	= 72.0 # MB/s
+  HDD Bandwidth	= 72.0, # MB/s
+
+  #Power Management 
+  HDD Spindown Policy = 1,
+
+  HDD Idle Threshold = 1000.0,
+  HDD Standby Threshold = 3800.0,
+
+  HDD Idleup Time = 500.0,
+  HDD Idledown Time = 500.0,
+  HDD Spinup Time = 1600.0,
+  HDD Spindown Time = 2300.0,
+
+  HDD Idleup Joul = 1.5,
+  HDD Idledown Joul = 1.5,
+  HDD Spinup Joul = 5.0,
+  HDD Spindown Joul = 2.94,
+
+  HDD Active Watt = 2.55,
+  HDD Idle Watt = 0.8,
+  HDD Standby Watt = 0.25,
+
+  SSD Active Watt = 0.37, 
+  SSD Idle Watt = 0.0006
 }
 
 disksim_stats Stats {

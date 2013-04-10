@@ -193,6 +193,10 @@ void fcl_issue_next_child ( ioreq_event *parent ){
 
 		addtointq((event *) req);
 
+		//if ( req->devno == HDD ) {
+		//	printf (" HDD blkno = %d \n",  req->blkno );
+		//}
+
 		if ( req ) {
 			flags = req->flags;
 			devno = req->devno;
@@ -1804,8 +1808,17 @@ void _fcl_request_complete ( ioreq_event *child ) {
 
 
 	parent = (ioreq_event *)child->fcl_parent;
-
 	parent->fcl_event_count[parent->fcl_event_ptr-1] -- ;
+
+	if(child->devno==SSD){
+		int phy;
+		phy = ssd_curr_physical ( child->devno, child->blkno);
+		if ( phy == -1 ) {
+			printf(" cacheno = %d, ssdblkno = %d \n", child->devno, child->blkno );
+			printf(" Opid = %d, blkno = %d, flags = %d \n", fcl_opid, 0, parent->flags );
+			ASSERT(0);
+		}
+	}
 
 	// next events are remaining. 
 	if ( parent->fcl_event_count[parent->fcl_event_ptr-1] == 0 &&
@@ -2103,9 +2116,66 @@ void fcl_set_ssd_params(ssd_t *curssd){
 	SSD_BUS = 8 * (SSD_BYTES_PER_SECTOR) * curssd->params.chip_xfer_latency * 1000;
 }
 
+void fcl_set_energy_params () {
+	disk *currdisk = getdisk (HDD);
+	ssd_t *currssd = getssd (SSD);
+
+	currdisk->spindown_policy  = fcl_params->fpa_hdd_spindown_policy;
+
+	currdisk->idle_threshold = fcl_params->fpa_hdd_idle_threshold;
+	currdisk->standby_threshold = fcl_params->fpa_hdd_standby_threshold;
+
+	currdisk->idleup_time = fcl_params->fpa_hdd_idleup_time;
+	currdisk->idledown_time = fcl_params->fpa_hdd_idledown_time;
+	currdisk->spinup_time = fcl_params->fpa_hdd_spinup_time;
+	currdisk->spindown_time = fcl_params->fpa_hdd_spindown_time;
+
+	currdisk->idleup_joul = fcl_params->fpa_hdd_idleup_joul;
+	currdisk->idledown_joul = fcl_params->fpa_hdd_idledown_joul;
+	currdisk->spinup_joul = fcl_params->fpa_hdd_spinup_joul;
+	currdisk->spindown_joul = fcl_params->fpa_hdd_spindown_joul;
+
+	currdisk->active_watt = fcl_params->fpa_hdd_active_watt;
+	currdisk->idle_watt = fcl_params->fpa_hdd_idle_watt;
+	currdisk->standby_watt = fcl_params->fpa_hdd_standby_watt;
+
+	currssd->active_watt = fcl_params->fpa_ssd_active_watt;
+	currssd->idle_watt = fcl_params->fpa_ssd_idle_watt;
+
+#if 1 
+	printf (" Energy Parameters \n");
+	printf (" HDD spindown policy = %d \n", currdisk->spindown_policy);
+	printf (" HDD idle threshold = %f \n", currdisk->idle_threshold);
+	printf (" HDD idle threshold = %f \n", currdisk->idle_threshold);
+	printf (" HDD standby threshold = %f\n", currdisk->standby_threshold);
+
+	printf (" HDD idleup time = %f \n", currdisk->idleup_time);
+	printf (" HDD idledown time = %f \n", currdisk->idledown_time);
+	printf (" HDD spinup time = %f \n", currdisk->spinup_time);
+	printf (" HDD spindown time = %f \n", currdisk->spindown_time);
+
+	printf (" HDD idleup joul = %f \n", currdisk->idleup_joul);
+	printf (" HDD idledown joul = %f \n", currdisk->idledown_joul);
+	printf (" HDD spinup joul = %f \n", currdisk->spinup_joul);
+	printf (" HDD spindown joul = %f \n", currdisk->spindown_joul);
+	
+	printf (" HDD Active Watt = %f\n", currdisk->active_watt);
+	printf (" HDD Idle Watt = %f\n", currdisk->idle_watt);
+	printf (" HDD Standby Watt = %f\n", currdisk->standby_watt);
+
+	printf (" SSD Active Watt = %f\n", fcl_params->fpa_ssd_active_watt);
+	printf (" SSD Idle Watt = %f\n", fcl_params->fpa_ssd_idle_watt);
+	printf ("\n");
+#endif 
+
+}
+
+
 void fcl_init () {
 	int lru_size = 50000;
 	ssd_t *currssd = getssd ( SSD );
+
+	fcl_set_energy_params ();
 
 	fcl_set_ssd_params ( currssd );
 	//fcl_print_parameters ( stdout ) ;

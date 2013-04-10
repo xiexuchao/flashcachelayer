@@ -114,6 +114,30 @@ struct fcl_parameters {
 
 	int		fpa_hdd_total_pages;
 	int		fpa_hdd_total_sectors;	
+
+	// HDD Power Management
+
+	int fpa_hdd_spindown_policy;
+	double fpa_hdd_idle_threshold;
+	double fpa_hdd_standby_threshold;
+
+	double fpa_hdd_idleup_time;
+	double fpa_hdd_idledown_time;
+	double fpa_hdd_spinup_time;
+	double fpa_hdd_spindown_time;
+
+	double fpa_hdd_idleup_joul;
+	double fpa_hdd_idledown_joul;
+	double fpa_hdd_spinup_joul;
+	double fpa_hdd_spindown_joul;
+
+	double fpa_hdd_active_watt;
+	double fpa_hdd_idle_watt;
+	double fpa_hdd_standby_watt;
+
+	double fpa_ssd_active_watt;
+	double fpa_ssd_idle_watt;
+	
 };
 
 struct fcl_statistics { 

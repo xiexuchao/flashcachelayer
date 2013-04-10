@@ -78,3 +78,69 @@ INIT result->fpa_hdd_cwpos = d;
 PARAM HDD Bandwidth		D	1
 TEST (d >= 0)
 INIT result->fpa_hdd_bandwidth = d;
+
+
+# HDD Power Management
+PARAM HDD Spindown Policy		I	1
+TEST (i >= 0)
+INIT result->fpa_hdd_spindown_policy = i;
+
+PARAM HDD Idle Threshold		D	1
+TEST (d >= 0)
+INIT result->fpa_hdd_idle_threshold = d;
+
+PARAM HDD Standby Threshold		D	1
+TEST (d >= 0)
+INIT result->fpa_hdd_standby_threshold = d;
+
+PARAM HDD Idleup Time		D	1
+TEST (d >= 0)
+INIT result->fpa_hdd_idleup_time = d;
+
+PARAM HDD  Idledown Time		D	1
+TEST (d >= 0)
+INIT result->fpa_hdd_idledown_time = d;
+
+PARAM HDD Spinup Time		D	1
+TEST (d >= 0)
+INIT result->fpa_hdd_spinup_time = d;
+
+PARAM HDD  Spindown Time		D	1
+TEST (d >= 0)
+INIT result->fpa_hdd_spindown_time = d;
+
+PARAM HDD Active Watt		D	1
+TEST (d >= 0)
+INIT result->fpa_hdd_active_watt = d;
+
+PARAM HDD Idle Watt		D	1
+TEST (d >= 0)
+INIT result->fpa_hdd_idle_watt = d;
+
+PARAM HDD Standby Watt		D	1
+TEST (d >= 0)
+INIT result->fpa_hdd_standby_watt = d;
+
+PARAM HDD Idleup Joul		D	1
+TEST (d >= 0)
+INIT result->fpa_hdd_idleup_joul = d;
+
+PARAM HDD  Idledown Joul		D	1
+TEST (d >= 0)
+INIT result->fpa_hdd_idledown_joul = d;
+
+PARAM HDD Spinup Joul		D	1
+TEST (d >= 0)
+INIT result->fpa_hdd_spinup_joul = d;
+
+PARAM HDD  Spindown Joul		D	1
+TEST (d >= 0)
+INIT result->fpa_hdd_spindown_joul = d;
+
+PARAM SSD Active Watt		D	1
+TEST (d >= 0)
+INIT result->fpa_ssd_active_watt = d;
+
+PARAM SSD Idle Watt		D	1
+TEST (d >= 0)
+INIT result->fpa_ssd_idle_watt = d;

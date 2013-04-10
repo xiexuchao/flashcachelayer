@@ -2963,36 +2963,229 @@ static void disk_interrupt_complete (ioreq_event *curr)
   }
 }
 
+void disk_overhead (ioreq_event *curr){
+  	disk *currdisk = getdisk (curr->devno);
 
+	if(currdisk->overhead > 0.0) {
+	  curr->time = simtime + (currdisk->overhead * currdisk->timescale);
+	  curr->type = DEVICE_OVERHEAD_COMPLETE;
+	  addtointq((event *) curr);
+	} 
+	else {
+	  disk_request_arrive(curr);
+	}
+}
+
+
+void disk_make_idledetector (int devno);
+
+void idleswitch_timer_event(timer_event *timereq){
+	disk *currdisk = (disk *)timereq->ptr;
+
+	if(!currdisk->waitq_count)
+	{
+		if(currdisk->status == DISK_STATUS_IDLESWITCHDOWN){
+			//printf("%f disk is idle ...\n", simtime);
+
+			currdisk->status = DISK_STATUS_IDLE;
+			disk_make_idledetector(currdisk->devno);
+		}else if(currdisk->status == DISK_STATUS_SPINDOWN){
+			//printf("%f disk is standby ...\n", simtime);
+
+			currdisk->status = DISK_STATUS_STANDBY;
+		}else {
+			ASSERT(0);
+		}
+	} else {
+		//printf("%f disk is not standby, spininig up .. \n", simtime);
+	}
+
+	addtoextraq ( (event *) timereq ); 
+}
+
+void idlecheck_timer_event(timer_event *timereq){
+	disk *currdisk = (disk *)timereq->ptr;
+	double threshold;
+	addtoextraq ( (event *) timereq ); 
+
+	if(currdisk->status == DISK_STATUS_ACTIVE){ // To idle state
+		threshold = currdisk->idle_threshold;  
+	} else if(currdisk->status == DISK_STATUS_IDLE) { // To standby state
+		threshold = currdisk->standby_threshold;
+	} else {
+//		printf("curr stat = %d, wait = %d  \n", currdisk->status, currdisk->waitq_count);
+	}
+
+	if(!currdisk->waitq_count && 
+		(currdisk->idledetect_start + threshold) <= simtime) {
+//		printf("%f Disk is idle, spinning down start ...%f \n", simtime, simtime - currdisk->idle_start );
+
+		timer_event *timereq = (timer_event *)getfromextraq();
+
+		if(currdisk->status == DISK_STATUS_ACTIVE){ // To idle state
+			currdisk->active_end = simtime;
+			currdisk->stat.activetime += (currdisk->active_end - currdisk->active_start);
+			currdisk->stat.idledowns++;
+			currdisk->status = DISK_STATUS_IDLESWITCHDOWN;
+			currdisk->idle_start = simtime + currdisk->idledown_time; 
+			timereq->time = simtime + currdisk->idledown_time; 
+		} else if(currdisk->status == DISK_STATUS_IDLE) { // To standby state
+			currdisk->idle_end = simtime;
+			currdisk->stat.idletime += (currdisk->idle_end - currdisk->idle_start);
+			currdisk->stat.spindowns++;
+			currdisk->status = DISK_STATUS_SPINDOWN;
+			currdisk->standby_start = simtime + currdisk->spindown_time; 
+			timereq->time = simtime + currdisk->spindown_time; 
+	//		printf("%f disk is spindown\n", simtime);
+		} else {
+			ASSERT(0);
+		}
+
+		currdisk->idleswitch_timer_func = idleswitch_timer_event;
+		timereq->func = &currdisk->idleswitch_timer_func ;
+		timereq->type = TIMER_EXPIRED;
+		timereq->ptr = currdisk;
+
+		addtointq ( (event *) timereq );
+
+	} else {
+		//printf("%f Disk is not idle ..\n", simtime);
+	}
+
+}
+
+void disk_make_idledetector (int devno){
+  	disk *currdisk = getdisk (devno);
+
+	//printf ( "%f I/O completion, qcount = %d, cause = %d \n", simtime, currdisk->waitq_count, curr->cause );
+	//printf ( " %f disk status = %d, blkno = %d, type = %d, cause = %d  \n", simtime, currdisk->status, curr->blkno, curr->type, curr->cause ) ;
+
+	currdisk->idledetect_start = simtime;
+	if( !currdisk->waitq_count){
+		timer_event *timereq = (timer_event *)getfromextraq();
+
+		currdisk->idlecheck_timer_func = idlecheck_timer_event;
+		timereq->func = &currdisk->idlecheck_timer_func;
+		timereq->type = TIMER_EXPIRED;
+
+		if(currdisk->status == DISK_STATUS_ACTIVE){
+			timereq->time = simtime + currdisk->idle_threshold; 
+		} else if(currdisk->status == DISK_STATUS_IDLE){
+			timereq->time = simtime + currdisk->standby_threshold; 
+		} else {
+			ASSERT(0);
+		}
+		timereq->ptr = currdisk;
+
+		addtointq ( (event *) timereq );
+
+		//printf("%f Create idle detector \n", simtime);
+	} 
+}
+
+void disk_ioaccess_arrive(ioreq_event *curr){
+	disk *currdisk = getdisk (curr->devno);
+	currdisk->waitq_count++;
+	currdisk->req_count++;
+
+	//printf("%f ioaccessarrive, qcount = %d, read = %d \n", simtime, currdisk->waitq_count, curr->flags);
+
+	if(currdisk->status == DISK_STATUS_IDLE) {
+		//printf("%f req at idle \n", simtime);
+		curr->time = simtime + currdisk->idleup_time; 
+		curr->type = DEVICE_OVERHEAD_COMPLETE;
+		currdisk->stat.idleups++;
+		currdisk->status = DISK_STATUS_IDLESWITCHUP;
+		currdisk->idle_end = simtime;
+		currdisk->stat.idletime += (currdisk->idle_end - currdisk->idle_start);
+
+		currdisk->active_start = simtime + currdisk->idleup_time; 
+		//printf ( "%f Spinning Up %f \n", simtime, curr->time);
+
+		addtointq((event *) curr);
+	}else if(currdisk->status == DISK_STATUS_STANDBY) {
+		//printf("%f req at standby \n", simtime);
+
+		curr->time = simtime + currdisk->spinup_time; 
+		curr->type = DEVICE_OVERHEAD_COMPLETE;
+		currdisk->stat.spinups++;
+		currdisk->status = DISK_STATUS_SPINUP;
+		currdisk->standby_end = simtime;
+		currdisk->stat.standbytime += (currdisk->standby_end - currdisk->standby_start);
+
+		currdisk->active_start = simtime + currdisk->spinup_time; 
+
+		addtointq((event *) curr);
+
+	}else if(currdisk->status == DISK_STATUS_IDLESWITCHUP ||
+			 currdisk->status == DISK_STATUS_SPINUP) { // if  DISK_STATUS_ACTIVE
+
+#if 0 
+		if(currdisk->status == DISK_STATUS_IDLESWITCHUP ) {
+			printf("%f  req at idleup time \n", simtime);
+		} else {
+			printf("%f  req at spinninup time \n", simtime);
+		}
+#endif 
+
+
+		if ( curr->time <= currdisk->active_start ) {
+			curr->time = currdisk->active_start + 0.001;
+			curr->type = DEVICE_OVERHEAD_COMPLETE;
+			addtointq((event *) curr);
+		} 
+	} else if(currdisk->status == DISK_STATUS_SPINDOWN) { // if  DISK_STATUS_ACTIVE
+		//printf("%f req at spinnindown time \n", simtime);
+
+		currdisk->stat.spinups++;
+		currdisk->active_start = currdisk->standby_start + currdisk->spinup_time; 
+		curr->time = currdisk->active_start + 0.001;		
+		curr->type = DEVICE_OVERHEAD_COMPLETE;
+		addtointq((event *) curr);
+	} else if(currdisk->status == DISK_STATUS_IDLESWITCHDOWN) { // if  DISK_STATUS_ACTIVE
+		//printf("%f req at idledown time \n", simtime);
+
+		currdisk->stat.idleups++;
+		currdisk->active_start = currdisk->idle_start + currdisk->idleup_time; 
+		curr->time = currdisk->active_start + 0.001;		
+		curr->type = DEVICE_OVERHEAD_COMPLETE;
+		addtointq((event *) curr);
+	} else if(currdisk->status == DISK_STATUS_ACTIVE) { // if  DISK_STATUS_ACTIVE
+		disk_overhead(curr);
+	}
+}
 
 static int debug_count = 0;
 
 void disk_event_arrive (ioreq_event *curr)
 {
   disk *currdisk = getdisk (curr->devno);
-
   disksim_inst_enter();
-
   debug_count ++;
 
-  //printf (" %d *disk event arrive: type = %d, time = %2.f, blkno = %d \n", debug_count, curr->type, simtime, curr->blkno);
-  
-  //ASSERT ( debug_count != 500 ); 
+  if(!currdisk->spindown_policy) {
+  	currdisk->status = DISK_STATUS_ACTIVE;
+  }
 
+  //printf ( "%f currdisk status = %d \n", simtime, currdisk->status );
+  //if( curr->flags == 0 ) 
+  //	printf (" %d *disk event arrive: type = %d, cuase = %d, time = %f, blkno = %d \n", debug_count, curr->type, curr->cause, simtime, curr->blkno);
+  
   switch (curr->type) {
 
   case IO_ACCESS_ARRIVE:
-    if(currdisk->overhead > 0.0) {
-      curr->time = simtime + (currdisk->overhead * currdisk->timescale);
-      curr->type = DEVICE_OVERHEAD_COMPLETE;
-      addtointq((event *) curr);
-    } 
-    else {
-      disk_request_arrive(curr);
-    }
+	  disk_ioaccess_arrive(curr);
     break;
 
   case DEVICE_OVERHEAD_COMPLETE:
+
+	if(currdisk->active_start <= curr->time){
+//		printf ( "%f Spinning Up Finish \n", simtime);
+		currdisk->status = DISK_STATUS_ACTIVE;
+	}
+
+	ASSERT(currdisk->status == DISK_STATUS_ACTIVE);
+
     disk_request_arrive(curr);
     break;
 
@@ -3021,7 +3214,18 @@ void disk_event_arrive (ioreq_event *curr)
     break;
 
   case IO_INTERRUPT_COMPLETE:
+	if( curr->cause == COMPLETION){
+		currdisk->waitq_count--;
+		ASSERT(currdisk->waitq_count >= 0);
+
+		if(currdisk->spindown_policy) {
+			disk_make_idledetector(curr->devno);
+		}
+	}
+
     disk_interrupt_complete(curr);
+
+
     break;
 
   case IO_QLEN_MAXCHECK:

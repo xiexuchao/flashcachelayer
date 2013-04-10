@@ -643,6 +643,22 @@ static void ssd_activate_elem(ssd_t *currdisk, int elem_num, ioreq_event *curr )
 }
 
 
+int ssd_curr_physical(int devno, int blkno){
+	ssd_t *currdisk = getssd(devicenos[devno]);		
+	ssd_t *s = currdisk;
+	int elem_num = currdisk->timing_t->choose_element(currdisk->timing_t, blkno);
+	ssd_element *elem = &currdisk->elements[elem_num];
+	ssd_element_metadata *metadata = &(s->elements[elem_num].metadata);
+	int lpn = ssd_logical_pageno(blkno, currdisk);
+	int plane_num = lpn % currdisk->params.planes_per_pkg;
+	int prev_page = metadata->lba_table[lpn];
+	int prev_block = SSD_PAGE_TO_BLOCK(prev_page, s);
+	int pagepos_in_prev_block = prev_page % s->params.pages_per_block;
+	int prev_plane = metadata->block_usage[prev_block].plane_num;
+	
+	
+	return prev_page;
+}
 void ssd_trim_command(int devno, int blkno){
 	ssd_t *currdisk = getssd(devicenos[devno]);		
 	ssd_t *s = currdisk;
@@ -1545,9 +1561,18 @@ void ssd_printstats (void)
       for (j=0;j<currdisk->params.nelements;j++) {
           char pprefix[100];
           struct ioq *q;
+		  double idletime;
+		  double idle_energy;
+		  double active_energy;
           sprintf_s5(pprefix, 100, "%s elem #%d ", prefix, j);
           q = currdisk->elements[j].queue;
           ioqueue_printstats(&q, 1, pprefix);
+
+		  idletime = stat_get_runval(&q->idlestats);
+		  idle_energy = (idletime/1000) * currdisk->idle_watt;
+		  active_energy = ((simtime - idletime)/1000)*currdisk->active_watt;
+   		  fprintf(outputfile, "%sTotal Joul:  \t%f\n", pprefix, idle_energy + active_energy );
+
       }
       ssd_acctime_printstats(&set[i], 1, prefix);
       ssd_other_printstats(&set[i], 1, prefix);

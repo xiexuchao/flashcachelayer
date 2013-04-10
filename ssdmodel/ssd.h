@@ -338,7 +338,11 @@ struct _ssd_timing_t;    // forward def for timing module.
 typedef struct ssd {
    struct device_header hdr;
    ssd_timing_params  params;
-    struct _ssd_timing_t   *timing_t;
+   struct _ssd_timing_t   *timing_t;
+
+   // ysoh 
+   double active_watt;
+   double idle_watt;
 
    double overhead;
    double bus_transaction_latency;

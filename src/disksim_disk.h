@@ -263,6 +263,16 @@ typedef struct {
    double  requestedbus;
    double  waitingforbus;
    int     numbuswaits;
+   // ysoh
+   int     spindowns;
+   int     spinups;
+   int     idledowns;
+   int     idleups;
+   double  activetime;
+   double  standbytime;
+   double  idletime;
+   double  spinuptime;
+   double  spindowntime;
 } diskstat;
 
 
@@ -469,7 +479,53 @@ typedef struct disk {
   // hasn't gotten to 0.
   int fpcheck;
 
+
+  // ysoh 
+  int req_count;
+  int waitq_count;
+  int status;
+  double active_start;
+  double active_end;
+  double idle_start;
+  double idle_end;
+  double idledetect_start;
+  double idledetect_end;
+  double standby_start;
+  double standby_end;
+
+  // function pointers
+  void (*idlecheck_timer_func)(struct timer_ev *);
+  void (*idleswitch_timer_func)(struct timer_ev *);
+
+  // Energy Parameters 
+  int spindown_policy;
+
+  double idle_threshold;
+  double standby_threshold;
+
+  double idleup_time;
+  double idledown_time;
+  double spinup_time;
+  double spindown_time;
+
+  double idleup_joul;
+  double idledown_joul;
+  double spinup_joul;
+  double spindown_joul;
+
+  double active_watt;
+  double idle_watt; 
+  double standby_watt;
 } disk;
+
+
+#define DISK_STATUS_IDLE			0
+#define DISK_STATUS_IDLESWITCHDOWN	1
+#define DISK_STATUS_IDLESWITCHUP	2
+#define DISK_STATUS_ACTIVE			3
+#define DISK_STATUS_SPINUP			4
+#define DISK_STATUS_SPINDOWN		5
+#define DISK_STATUS_STANDBY			6
 
 
 typedef struct disk_info {
