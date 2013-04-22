@@ -58,6 +58,8 @@ ioreq_event *fcl_create_child ( ioreq_event *parent, int devno, int blkno, int b
 	//child = ioreq_copy ( parent );
 	child  = (ioreq_event *) getfromextraq(); // DO NOT Use !!	
 
+	fcl_opid++;
+	child->opid = fcl_opid;
 	child->time = simtime;
 	child->devno = devno;
 	child->blkno = blkno;
